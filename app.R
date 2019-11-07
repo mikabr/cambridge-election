@@ -10,10 +10,11 @@ library(feather)
 library(stringr)
 library(lubridate)
 library(langcog)
-theme_set(theme_mikabr())
+theme_set(theme_mikabr(base_family = "Source Sans Pro"))
+extrafont::loadfonts()
 
-get_constants <- function(election) {
-  constant_url <- glue("http://www.cambridgema.gov/election2017/{election}%20Round.htm")
+get_constants <- function(election, year) {
+  constant_url <- glue("http://www.cambridgema.gov/election{year}/{election}%20Round.htm")
   constant_data <- GET(constant_url) %>% content(as = "text")
   list(
     date = constant_data %>% str_extract(".+(?= -- Cambridge, MA)"),
@@ -30,10 +31,10 @@ get_constants <- function(election) {
   )
 }
 
-get_counts <- function(election, n_rounds) {
+get_counts <- function(election, year, n_rounds) {
 
   round_counts <- function(r) {
-    round_url <- glue("http://www.cambridgema.gov/election2017/{election}%20Round{r}.htm")
+    round_url <- glue("http://www.cambridgema.gov/election{year}/{election}%20Round{r}.htm")
     round_data <- GET(round_url) %>% content()
 
     results <- round_data %>%
@@ -78,27 +79,28 @@ get_counts <- function(election, n_rounds) {
 
 }
 
-load_counts <- function(election, n_rounds, cache = TRUE) {
-  counts_file <- glue("counts_{election}.feather")
+load_counts <- function(election, year, n_rounds, cache = TRUE) {
+  counts_file <- glue("counts_{year}_{election}.feather")
   if (cache & file.exists(counts_file)) {
     counts <- read_feather(counts_file)
   } else {
-    counts <- get_counts(election, n_rounds)
+    counts <- get_counts(election, year, n_rounds)
     write_feather(counts, counts_file)
   }
   return(counts)
 }
 
-rounds_council <- 19
-counts_council <- load_counts("Council", rounds_council)
-constants_council <- get_constants("Council")
+# rounds_council <- 19
+rounds_council <- 15
+counts_council <- load_counts("Council", "2019", rounds_council)
+constants_council <- get_constants("Council", "2019")
 constants_council$elimination <- 50
 constants_council$n_candidates <- n_distinct(counts_council$candidate)
 constants_council$max_x <- max(counts_council$total)
 
 rounds_school <- 9
-counts_school <- load_counts("School", rounds_school)
-constants_school <- get_constants("School")
+counts_school <- load_counts("School", "2019", rounds_school)
+constants_school <- get_constants("School", "2019")
 constants_school$elimination <- 50
 constants_school$n_candidates <- n_distinct(counts_school$candidate)
 constants_school$max_x <- max(counts_school$total)
@@ -144,9 +146,9 @@ electionUI <- function(constants) {
       glue("Preliminary results as of {constants$date}"), br(),
       glue("{format(constants$valid_ballots, big.mark = ',')} valid ballots were
            counted to elect {constants$seats} candidates out of
-           {constants$n_candidates}
-           ({format(constants$invalid_ballots, big.mark = ',')} invalid
-           ballots)")
+           {constants$n_candidates}")
+           # ({format(constants$invalid_ballots, big.mark = ',')} invalid
+           # ballots)")
     ),
     br()
   ))
@@ -165,7 +167,7 @@ ui <- fluidPage(
   theme = shinytheme("lumen"),
   shinyjs::useShinyjs(),
 
-  titlePanel("Cambridge Municipal Election 2017"), br(),
+  titlePanel("Cambridge Municipal Election 2019"), br(),
 
   mainPanel(
     width = 12,
@@ -266,8 +268,8 @@ server <- function(input, output) {
     case_when(
       k_council() == 0 ~ "To start off, count the number of #1 votes that each candidate received.",
       k_council() == 1 ~ sprintf("Any candidate whose count is above the quota of %s is declared elected.", constants_council$quota),
-      k_council() == 2 ~ "Then, redistribute the surplus ballots of elected candidate(s) to the next ranked candidate on the ballot<br> (which ballots are selected for redistribution is random).",
-      k_council() == 3 ~ sprintf("Next, eliminate any candidate whose count is below %s and redistribute their ballots.", constants_council$elimination),
+      k_council() == 2 ~ sprintf("Then, redistribute the surplus ballots of elected candidate(s) to the next ranked candidate on the ballot<br> (which ballots are selected for redistribution is random).<br><br>Also, eliminate any candidate whose count is below %s and redistribute their ballots.", constants_council$elimination),
+      # k_council() == 3 ~ sprintf("Next, eliminate any candidate whose count is below %s and redistribute their ballots.", constants_council$elimination),
       k_council() == rounds_council ~ sprintf("When there are %s candidates left, those are the winners!", constants_council$seats),
       TRUE ~ "In every next round, eliminate the lowest ranked candidate and redistribute their ballots.<br> If any candidate's count reaches quota, declare them elected and redistribute their surplus ballots."
     ) %>% HTML()
