@@ -11,7 +11,7 @@ library(stringr)
 library(lubridate)
 library(langcog)
 theme_set(theme_mikabr(base_family = "Source Sans Pro"))
-extrafont::loadfonts()
+# extrafont::loadfonts()
 
 get_constants <- function(election, year) {
   constant_url <- glue("http://www.cambridgema.gov/election{year}/{election}%20Round.htm")
@@ -90,7 +90,6 @@ load_counts <- function(election, year, n_rounds, cache = TRUE) {
   return(counts)
 }
 
-# rounds_council <- 19
 rounds_council <- 15
 counts_council <- load_counts("Council", "2019", rounds_council)
 constants_council <- get_constants("Council", "2019")
@@ -98,7 +97,7 @@ constants_council$elimination <- 50
 constants_council$n_candidates <- n_distinct(counts_council$candidate)
 constants_council$max_x <- max(counts_council$total)
 
-rounds_school <- 9
+rounds_school <- 10
 counts_school <- load_counts("School", "2019", rounds_school)
 constants_school <- get_constants("School", "2019")
 constants_school$elimination <- 50
@@ -143,12 +142,12 @@ electionUI <- function(constants) {
     12,
     br(),
     p(style = "font-size:120%",
-      glue("Preliminary results as of {constants$date}"), br(),
+      glue("Results as of {constants$date}"), br(),
       glue("{format(constants$valid_ballots, big.mark = ',')} valid ballots were
-           counted to elect {constants$seats} candidates out of
-           {constants$n_candidates}")
-           # ({format(constants$invalid_ballots, big.mark = ',')} invalid
-           # ballots)")
+           counted to elect {constants$seats} candidates
+           ({format(constants$invalid_ballots, big.mark = ',')} invalid
+           ballots)")
+      # {constants$n_candidates}
     ),
     br()
   ))
@@ -159,7 +158,7 @@ github <- function() {
     1, offset = 11,
     br(), br(),
     a(href = "https://github.com/mikabr/cambridge-election",
-      icon("github", class = "fa-3x")),
+      icon("github", class = "fa-3x"), target = "_blank"),
     br(), br()))
 }
 
